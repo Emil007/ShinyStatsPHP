@@ -2,7 +2,7 @@
 Self hosted clone of https://shinyrates.com
 
 We've been running this Version for a few months now, but changing to Golbat gave us the motivation to clean it up and extend functionality a little bit.
-Thanks to verx for a great base, i have no idea what i'm doing and its mostly hacking stuff together with chatgpt and help from others, so if you find any errors, feel free to improve the script
+Thanks to versx for a great base, i have no idea what i'm doing and its mostly hacking stuff together with chatgpt and help from others, so if you find any errors, feel free to improve the script
 
 Notes additions to the Original (in no particular order):
 
