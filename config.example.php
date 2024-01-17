@@ -10,6 +10,6 @@ $config = [
 		'charset' => 'utf8mb4'
 	],
 	'timezone' => 'America/Denver',
-	'images' => 'https://cdn.example.com/images/original/monsters/%03d_000.png'
-];
+	'images' => 'https://cdn.example.com/images/original/monsters/%03d_000.png',
+	'title' => 'Stats'];
 ?>

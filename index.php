@@ -2,7 +2,6 @@
 
 require 'config.php';
 require 'Medoo.php';
-require 'pokedex.php';
 
 use Medoo\Medoo;
 
@@ -10,30 +9,76 @@ use Medoo\Medoo;
 $db = new Medoo($config['db']);
 if ($db === NULL) { die(); }
 
+$title = $config['title'];
+
 $timeZoneSet = date_default_timezone_set($config['timezone']);
 if ($timeZoneSet === false) {
 	echo "Failed to set timezone";
 }
 
 
-$today = date('Y-m-d');
-$shinyStats = $db->select('pokemon_shiny_stats', [
-    'date',
-    'pokemon_id',
-    'count' => Medoo::raw('SUM(`count`)')
-], [
-    'date' => $today,
-    'GROUP' => 'pokemon_id'
-]);
 
-$totalStats = $db->select('pokemon_iv_stats', [
-    'date',
-    'pokemon_id',
-    'count' => Medoo::raw('SUM(`count`)')
-], [
-    'date' => $today,
-    'GROUP' => 'pokemon_id'
-]);
+
+
+
+
+$today = date('Y-m-d');
+$toDate = strtotime($_POST['toDate']);
+$fromDate = strtotime($_POST['fromDate']);
+if ($fromDate) {
+  $fromdt = date('Y-m-d', $fromDate);
+} else {
+   $fromdt = $today;
+}
+
+if ($toDate) {
+  $todt = date('Y-m-d', $toDate);
+} else {
+   $todt = $today;
+}
+
+
+
+ if (isset($_POST['statSel'])){
+	 $statName=$_POST['statSel'];
+	 $statSelection=strtolower($statName);
+ } else
+ {
+	 $statSelection="shiny";
+	 $statName="Shiny";
+ }
+
+if (isset($_POST['languageSel'])){
+	 $languageSelection=$_POST['languageSel'];
+	 require 'pokedex_'.strtolower($languageSelection).'.php';
+
+ } else
+ {
+	 $languageSelection="DE";
+	 require 'pokedex_de.php';
+ }
+
+$statQuery = "SELECT date, pokemon_id, SUM(count) as count
+	FROM pokemon_".$statSelection."_stats
+	WHERE date BETWEEN :from AND :to
+	GROUP BY  pokemon_id";
+	
+	
+	
+$stats = $db->query($statQuery,
+	[ ":from" => $fromdt, ":to" => $todt ])
+	->fetchAll();
+
+$totalStats = $db->query("SELECT date, pokemon_id, SUM(count) as count
+	FROM pokemon_iv_stats
+	WHERE date BETWEEN :from AND :to
+	GROUP BY  pokemon_id",
+	[ ":from" => $fromdt, ":to" => $todt ])
+	->fetchAll();
+
+$totalSumStat = getTotalCount($stats, "NULL");
+$totalSumPokemon = getTotalCount($totalStats, "NULL");
+$totalStatRate = round($totalSumPokemon/$totalSumStat);
 
 $html = '
 <!DOCTYPE html>
@@ -44,13 +89,41 @@ $html = '
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-  <title>Live shiny stats for Pokémon Go</title>
+	<script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+  <title>'.$statName.' '.$title.'</title>
 
   <style>
+
   	.icon {
   		width: 60px;
 			height: 60px;
   	}
+	
+	.container {
+	  display: flex;
+	  justify-content: space-between;
+	}
+input[type="date"] {
+    max-height: 25px;
+}
+	.fullshinystats
+	{
+	 width: 20%;
+	  text-align: right;
+	}
+	
+	.statSel
+	{
+	 width: 20%;
+	  text-align: left;
+	}
+	.data_period
+	{
+	  width: 80%;
+	  margin: 0 auto;
+	}
 
 	#header {
 		font-weight: bold;
@@ -82,46 +155,97 @@ $html = '
 		text-align: center;
 		margin: 10px;
 	}
+	
+	img {
+	  display: block;
+	  max-height:48px;
+	  max-width:48px;
+	  width: auto;
+	  height: auto;
+	}
   </style>
 </head>
 <body>
 	<div id="header">
-		Live Shiny Stats for Pokémon Go
+	   '.$statName.' '.$title.'
+	   <br>
 	</div>
-	<div id="data_period">
-		Data from the last 24 hours.
+	<br>
+<div class="container">
+	<div id="statSel">
+	<form name="statSelection" action="" method="post">
+    <select name="statSel" onchange="this.form.submit()">
+		<option value="Shiny" '.($statSelection == "shiny" ? "selected" : "").'>Shiny Stats</option>
+                    <option value="Hundo" '.($statSelection == "hundo" ? "selected" : "").'>Hundo Stats</option>
+                    <option value="Nundo" '.($statSelection == "nundo" ? "selected" : "").'>Nundo Stats</option>
+    </select>	
+	<select name="languageSel" onchange="this.form.submit()">
+					<option value="DE" '.($languageSelection == "DE" ? "selected" : "").'>DE</option>
+                    <option value="EN" '.($languageSelection == "EN" ? "selected" : "").'>EN</option>
+    </select>
+</div><div>
+		
+		<input type="date" name="fromDate" min="2022-07-01" max="'.$today.'" value="'.$fromdt.'" onchange="this.form.submit()">
+        <input type="date" name="toDate" min="2022-07-01" max="'.$today.'" value="'.$todt.'" onchange="this.form.submit()">
+		</div>
+    </form>
+	
+	<div id="fullshinystats">
+	<table>		
+		<tr>			
+			<td>Total</td><td>'.number_format($totalSumPokemon).'</td>
+			</tr>
+			<tr>
+			<td>'.$statName.'</td><td>'.number_format($totalSumStat).'</td>
+			</tr>
+			<tr>
+			<td>Rate</td><td>1/'.$totalStatRate.'</td>
+			</tr>
+		</tr>		
+	</table>	
 	</div>
+</div>
 	<div id="shiny_table">
-		<table class="table table-striped table-hover table-sm">
+		<table class="table sortable table-striped table-hover table-sm">
 		    <thead class="thead-dark">
 		        <tr>
-			        <th scope="col"> </th>
+			        <th class="sorttable_nosort" scope="col"> </th>
+					<th scope="col">ID</th>
 		            <th scope="col">Pokemon</th>
-		            <th scope="col">Shiny Rate</th>
-		            <th scope="col">Shiny / Total</th>
+		            <th scope="col">'.$statName.' Rate</th>
+					<th scope="col">'.$statName.' Rate in %</th>
+					<th scope="col">Total</th>
+		            <th scope="col">Total '.$statName.'</th>
+					<th scope="col">Rarity</th>	
 		        </tr>
 		    </thead>
 		    <tbody id="table_body">';
-for ($i = 0; $i < count($shinyStats); $i++) {
-	$row = $shinyStats[$i];
+			
+for ($i = 0; $i < count($stats); $i++) {
+	$row = $stats[$i];
 	$pokemonId = $row['pokemon_id'];
 	$name = $pokedex[$pokemonId];
-	$shiny = $row['count'];
+	$sta = $row['count'];
 	$total = getTotalCount($totalStats, $pokemonId);
-	$rate = round($total / $shiny);
+	$rate = round($total / $sta);
 	$pokemonImageUrl = sprintf($config['images'], $pokemonId);
+    $rarityStat = $totalSumPokemon/$sta;
 
 	$html .= '<tr>';
-	$html .= '<td><img src="' . $pokemonImageUrl . '" width="48" height="48"/></td>';
-	$html .= '<td>' . $name . ' (#' . $pokemonId . ')</td>';
-	$html .= '<td>1/' . $rate . '</td>';
-	$html .= '<td>' . number_format($shiny) . '/' . number_format($total) . '</td>';
+	$html .= '<td><img src="' . $pokemonImageUrl . '" max-height="48" max-width="48"/></td>';
+	$html .= '<td>' . number_format($pokemonId) . '</td>';
+	$html .= '<td>' . $name . '</td>';
+	$html .= '<td sorttable_customkey='.$rate.'>1/' . $rate . '</td>';
+	$html .= '<td sorttable_customkey='.number_format((1/$rate)*100,4).'>' . number_format((1/$rate)*100,4) . '%</td>';
+    $html .= '<td>' . number_format($total) .'</td>';
+	$html .= '<td>' . number_format($sta) .'</td>';
+    $html .= '<td sorttable_customkey='.number_format($rarityStat).'>1/' . number_format($rarityStat) .'</td>';
 	$html .= '</tr>';
 }
 $html .= '</tbody>
 		</table>
 	</div>
-	<div id="footer"></div> 
+	<div id="footer"></div>
 </body>
 </html>
 ';
@@ -129,12 +253,27 @@ $html .= '</tbody>
 echo $html;
 
 function getTotalCount($pokemon, $pokemonId) {
-	for ($i = 0; $i < count($pokemon); $i++) {
-		$row = $pokemon[$i];
-		if ($row['pokemon_id'] === $pokemonId) {
-			return $row['count'];
+	
+	if($pokemonId === "NULL")
+	{
+		$sum = 0;
+		for ($i = 0; $i < count($pokemon); $i++) {
+			$row = $pokemon[$i];
+			$sum = $sum + $row['count'];
+		}
+		return $sum;
+	}
+	else
+	{
+	
+		for ($i = 0; $i < count($pokemon); $i++) {
+			$row = $pokemon[$i];
+			if ($row['pokemon_id'] === $pokemonId) {
+				return $row['count'];
+			}
 		}
 	}
 	return 0;
 }
+
 ?>
