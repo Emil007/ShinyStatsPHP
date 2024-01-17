@@ -12,3 +12,4 @@ Notes additions to the Original (in no particular order):
 - Sorting
 - way more Stats like Shiny Rate in %, Total Stats, Rarity
 - "Rarity" is the Chance of getting a specific Pkmn based on all spawns, like when you play casually and click on every pkmn
+- Moved title to config
