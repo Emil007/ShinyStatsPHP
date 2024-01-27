@@ -23,8 +23,8 @@ if ($timeZoneSet === false) {
 
 
 $today = date('Y-m-d');
-$toDate = strtotime($_POST['toDate']);
-$fromDate = strtotime($_POST['fromDate']);
+$toDate = isset($_POST['toDate']) ? strtotime($_POST['toDate']) : false;
+$fromDate = isset($_POST['fromDate']) ? strtotime($_POST['fromDate']) : false;
 if ($fromDate) {
   $fromdt = date('Y-m-d', $fromDate);
 } else {
@@ -47,7 +47,8 @@ if ($toDate) {
 	 $statSelection="shiny";
 	 $statName="Shiny";
  }
-
+ 
+ 
 if (isset($_POST['languageSel'])){
 	 $languageSelection=$_POST['languageSel'];
 	 require 'pokedex_'.strtolower($languageSelection).'.php';
@@ -59,26 +60,30 @@ if (isset($_POST['languageSel'])){
  }
 
 $statQuery = "SELECT date, pokemon_id, SUM(count) as count
-	FROM pokemon_".$statSelection."_stats
-	WHERE date BETWEEN :from AND :to
-	GROUP BY  pokemon_id";
-	
-	
-	
+    FROM pokemon_".$statSelection."_stats
+    WHERE date BETWEEN :from AND :to"
+    . ($statSelection !== "shiny" ? " AND Area = 'Map'" : "") .
+    " GROUP BY pokemon_id
+    HAVING SUM(count) > 0";
+
 $stats = $db->query($statQuery,
-	[ ":from" => $fromdt, ":to" => $todt ])
-	->fetchAll();
+    [ ":from" => $fromdt, ":to" => $todt ])
+    ->fetchAll();
 
 $totalStats = $db->query("SELECT date, pokemon_id, SUM(count) as count
-	FROM pokemon_iv_stats
-	WHERE date BETWEEN :from AND :to
-	GROUP BY  pokemon_id",
-	[ ":from" => $fromdt, ":to" => $todt ])
-	->fetchAll();
+    FROM pokemon_iv_stats
+    WHERE date BETWEEN :from AND :to AND Area = 'Map'
+    GROUP BY pokemon_id",
+    [ ":from" => $fromdt, ":to" => $todt ])
+    ->fetchAll();
+
+	
+	$minDate = $db->min("pokemon_iv_stats","date");
+
 
 $totalSumStat = getTotalCount($stats, "NULL");
 $totalSumPokemon = getTotalCount($totalStats, "NULL");
-$totalStatRate = round($totalSumPokemon/$totalSumStat);
+$totalStatRate = $totalSumStat != 0 ? round($totalSumPokemon / $totalSumStat) : 0;
 
 $html = '
 <!DOCTYPE html>
@@ -90,7 +95,9 @@ $html = '
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 	<script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
   <title>'.$statName.' '.$title.'</title>
 
@@ -173,6 +180,7 @@ input[type="date"] {
 	<br>
 <div class="container">
 	<div id="statSel">
+	<br>
 	<form name="statSelection" action="" method="post">
     <select name="statSel" onchange="this.form.submit()">
 		<option value="Shiny" '.($statSelection == "shiny" ? "selected" : "").'>Shiny Stats</option>
@@ -182,27 +190,28 @@ input[type="date"] {
 	<select name="languageSel" onchange="this.form.submit()">
 					<option value="DE" '.($languageSelection == "DE" ? "selected" : "").'>DE</option>
                     <option value="EN" '.($languageSelection == "EN" ? "selected" : "").'>EN</option>
-    </select>
+    </select><br>
 </div><div>
-		
-		<input type="date" name="fromDate" min="2022-07-01" max="'.$today.'" value="'.$fromdt.'" onchange="this.form.submit()">
-        <input type="date" name="toDate" min="2022-07-01" max="'.$today.'" value="'.$todt.'" onchange="this.form.submit()">
+		<br>
+		<input type="date"  name="fromDate" min="'.$minDate.'" max="'.$today.'" value="'.$fromdt.'" onchange="this.form.submit()">
+        <input type="date"  name="toDate" min="'.$minDate.'" max="'.$today.'" value="'.$todt.'" onchange="this.form.submit()">
 		</div>
     </form>
 	
 	<div id="fullshinystats">
 	<table>		
 		<tr>			
-			<td>Total</td><td>'.number_format($totalSumPokemon).'</td>
+			<td>Total</td><td align="right">'.number_format($totalSumPokemon).'</td>
 			</tr>
 			<tr>
-			<td>'.$statName.'</td><td>'.number_format($totalSumStat).'</td>
+			<td>'.$statName.'</td><td align="right">'.number_format($totalSumStat).'</td>
 			</tr>
 			<tr>
-			<td>Rate</td><td>1/'.$totalStatRate.'</td>
+			<td>Rate</td><td align="right">1/'.$totalStatRate.'</td>
 			</tr>
 		</tr>		
-	</table>	
+	</table>
+<br>	
 	</div>
 </div>
 	<div id="shiny_table">
@@ -230,6 +239,8 @@ for ($i = 0; $i < count($stats); $i++) {
 	$rate = round($total / $sta);
 	$pokemonImageUrl = sprintf($config['images'], $pokemonId);
     $rarityStat = $totalSumPokemon/$sta;
+	
+	
 
 	$html .= '<tr>';
 	$html .= '<td><img src="' . $pokemonImageUrl . '" max-height="48" max-width="48"/></td>';
