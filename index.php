@@ -193,8 +193,8 @@ input[type="date"] {
     </select><br>
 </div><div>
 		<br>
-		<input type="date"  name="fromDate" min="'.$minDate.'" max="'.$today.'" value="'.$fromdt.'" onchange="this.form.submit()">
-        <input type="date"  name="toDate" min="'.$minDate.'" max="'.$today.'" value="'.$todt.'" onchange="this.form.submit()">
+    <input type="date" name="fromDate" min="'.$minDate.'" max="'.$today.'" value="'.$fromdt.'" onchange="this.form.submit()" readonly onfocus="this.removeAttribute(\'readonly\');">
+    <input type="date" name="toDate" min="'.$minDate.'" max="'.$today.'" value="'.$todt.'" onchange="this.form.submit()" readonly onfocus="this.removeAttribute(\'readonly\');">
 		</div>
     </form>
 	
@@ -242,16 +242,21 @@ for ($i = 0; $i < count($stats); $i++) {
 	
 	
 
-	$html .= '<tr>';
-	$html .= '<td><img src="' . $pokemonImageUrl . '" max-height="48" max-width="48"/></td>';
-	$html .= '<td>' . number_format($pokemonId) . '</td>';
-	$html .= '<td>' . $name . '</td>';
-	$html .= '<td sorttable_customkey='.$rate.'>1/' . $rate . '</td>';
-	$html .= '<td sorttable_customkey='.number_format((1/$rate)*100,4).'>' . number_format((1/$rate)*100,4) . '%</td>';
-    $html .= '<td>' . number_format($total) .'</td>';
-	$html .= '<td>' . number_format($sta) .'</td>';
-    $html .= '<td sorttable_customkey='.number_format($rarityStat).'>1/' . number_format($rarityStat) .'</td>';
-	$html .= '</tr>';
+$html .= '<tr>';
+$html .= '<td><img src="' . $pokemonImageUrl . '" max-height="48" max-width="48"/></td>';
+$html .= '<td>' . number_format($pokemonId) . '</td>';
+$html .= '<td>' . $name . '</td>';
+$rateDisplay = $rate != 0 ? '1/' . $rate : 'N/A';
+$html .= '<td sorttable_customkey='.$rate.'>' . $rateDisplay . '</td>';
+$ratePercent = $rate != 0 ? number_format((1/$rate)*100, 4) : '0.0000';
+$html .= '<td sorttable_customkey='.number_format($ratePercent, 4).'>' . $ratePercent . '%</td>';
+$html .= '<td>' . number_format($total) .'</td>';
+$html .= '<td>' . number_format($sta) .'</td>';
+$rarityStatDisplay = $rarityStat != 0 ? '1/' . number_format($rarityStat) : 'N/A';
+$html .= '<td sorttable_customkey='.number_format($rarityStat).'>'. $rarityStatDisplay .'</td>';
+
+$html .= '</tr>';
+
 }
 $html .= '</tbody>
 		</table>
